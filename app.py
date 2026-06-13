@@ -19,7 +19,7 @@ with st.expander("See all 22 supported languages"):
     * **Southern India:** Tamil
     """)
 
-@st.cache_resource
+# Fixed: Removed the duplicate cache decorator here
 @st.cache_resource
 def load_pipeline():
     model_path = "fasttext_lang.model"
@@ -52,7 +52,8 @@ def load_pipeline():
 try:
     ft_model, xgb_model, label_encoder = load_pipeline()
 except Exception as e:
-    st.error("Error loading models.")
+    # Fixed: Exposing the exact error variable 'e' so you can see the file mismatch path
+    st.error(f"Error loading models: {e}")
     st.stop()
 
 def vectorize_text(text, model, vector_size=100):
@@ -90,7 +91,3 @@ if st.button("Detect Language", type="primary"):
         vectorized_input = vectorize_text(user_input, ft_model)
         
         pred_encoded = xgb_model.predict(vectorized_input)
-        
-        predicted_language = label_encoder.inverse_transform(pred_encoded)[0]
-        
-        st.success(f"### Predicted Language: **{predicted_language}**")
