@@ -2,3 +2,4 @@ xgboost
 gensim
 pandas
 numpy
+scikit-learn
