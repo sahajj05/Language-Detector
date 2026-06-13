@@ -24,7 +24,7 @@ def load_pipeline():
     
     df = pd.read_csv("language.csv")
     
-    languages = sorted(df['language'].unique().tolist())
+    languages = ['Arabic', 'Chinese', 'Dutch', 'English', 'Estonian', 'French', 'Hindi', 'Indonesian', 'Japanese', 'Korean', 'Latin', 'Persian', 'Portugese', 'Pushto', 'Romanian', 'Russian', 'Spanish', 'Swedish', 'Tamil', 'Thai', 'Turkish', 'Urdu']
     
     if os.path.exists(model_path):
         ft_model = FastText.load(model_path)
