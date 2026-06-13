@@ -22,23 +22,19 @@ with st.expander("See all 22 supported languages"):
 def load_pipeline():
     model_path = "fasttext_lang.model"
     
+    df = pd.read_csv("language.csv")
+    
+    languages = sorted(df['language'].unique().tolist())
+    
     if os.path.exists(model_path):
         ft_model = FastText.load(model_path)
     else:
         st.info("Configuring server language environment... This happens only on first boot.")
-        df = pd.read_csv("language.csv")
         X_tokens = [str(text).lower().split() for text in df['Text']]
         ft_model = FastText(sentences=X_tokens, vector_size=100, window=5, min_count=1, workers=4)
     
     xgb_model = XGBClassifier()
     xgb_model.load_model("xgboost_lang.json")
-    
-    languages = [
-        'Arabic', 'Chinese', 'Dutch', 'English', 'Estonian', 'French', 
-        'Hindi', 'Indonesian', 'Japanese', 'Korean', 'Latin', 'Persian', 
-        'Portugese', 'Pushto', 'Romanian', 'Russian', 'Spanish', 
-        'Swedish', 'Tamil', 'Thai', 'Urdu'
-    ]
         
     return ft_model, xgb_model, languages
 
