@@ -4,6 +4,8 @@ import pickle
 from gensim.models import FastText
 from xgboost import XGBClassifier
 import re
+import os
+import pandas as pd
 
 st.set_page_config(page_title="Multilingual Language Detector", page_icon="🌐", layout="centered")
 
@@ -18,9 +20,27 @@ with st.expander("See all 22 supported languages"):
     """)
 
 @st.cache_resource
+@st.cache_resource
 def load_pipeline():
-    ft_model = FastText.load("fasttext_lang.model")
+    model_path = "fasttext_lang.model"
     
+    # Check if local model file exists (It won't on Streamlit Cloud)
+    if os.path.exists(model_path):
+        ft_model = FastText.load(model_path)
+    else:
+        # Fallback: Train FastText instantly on the cloud using your CSV dataset
+        st.info("Configuring server language environment... This happens only on first boot.")
+        
+        # Load your dataset
+        df = pd.read_csv("language.csv")
+        
+        # Tokenize exactly like your training pipeline
+        X_tokens = [str(text).lower().split() for text in df['Text']]
+        
+        # Train FastText (takes ~15 seconds on Streamlit's servers)
+        ft_model = FastText(sentences=X_tokens, vector_size=100, window=5, min_count=1, workers=4)
+    
+    # Load your XGBoost model and Label Encoder natively
     xgb_model = XGBClassifier()
     xgb_model.load_model("xgboost_lang.json")
     
