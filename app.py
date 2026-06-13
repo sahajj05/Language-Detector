@@ -1,6 +1,5 @@
 import streamlit as st
 import numpy as np
-import pickle
 from gensim.models import FastText
 from xgboost import XGBClassifier
 import re
@@ -19,67 +18,53 @@ with st.expander("See all 22 supported languages"):
     * **Southern India:** Tamil
     """)
 
-# Fixed: Removed the duplicate cache decorator here
 @st.cache_resource
 def load_pipeline():
     model_path = "fasttext_lang.model"
     
-    # Check if local model file exists (It won't on Streamlit Cloud)
     if os.path.exists(model_path):
         ft_model = FastText.load(model_path)
     else:
-        # Fallback: Train FastText instantly on the cloud using your CSV dataset
         st.info("Configuring server language environment... This happens only on first boot.")
-        
-        # Load your dataset
         df = pd.read_csv("language.csv")
-        
-        # Tokenize exactly like your training pipeline
         X_tokens = [str(text).lower().split() for text in df['Text']]
-        
-        # Train FastText (takes ~15 seconds on Streamlit's servers)
         ft_model = FastText(sentences=X_tokens, vector_size=100, window=5, min_count=1, workers=4)
     
-    # Load your XGBoost model and Label Encoder natively
     xgb_model = XGBClassifier()
     xgb_model.load_model("xgboost_lang.json")
     
-    with open("label_encoder.pkl", "rb") as f:
-        label_encoder = pickle.load(f)
+    languages = [
+        'Arabic', 'Chinese', 'Dutch', 'English', 'Estonian', 'French', 
+        'Hindi', 'Indonesian', 'Japanese', 'Korean', 'Latin', 'Persian', 
+        'Portugese', 'Pushto', 'Romanian', 'Russian', 'Spanish', 
+        'Swedish', 'Tamil', 'Thai', 'Urdu'
+    ]
         
-    return ft_model, xgb_model, label_encoder
+    return ft_model, xgb_model, languages
 
 try:
-    ft_model, xgb_model, label_encoder = load_pipeline()
+    ft_model, xgb_model, languages_list = load_pipeline()
 except Exception as e:
-    # Fixed: Exposing the exact error variable 'e' so you can see the file mismatch path
     st.error(f"Error loading models: {e}")
     st.stop()
 
 def vectorize_text(text, model, vector_size=100):
     text_str = str(text).lower().strip()
     
-    # Check if the text belongs to an East Asian script that doesn't use space separations
-    # (Chinese: 4E00-9FFF, Japanese: 3040-30FF, Korean: AC00-D7AF)
     has_cjk = any(0x4E00 <= ord(char) <= 0x9FFF or 
                   0x3040 <= ord(char) <= 0x30FF or 
                   0xAC00 <= ord(char) <= 0xD7AF for char in text_str)
     
     if has_cjk:
-        # For non-space languages, break the string directly down into single characters
         tokens = [char for char in text_str if not char.isspace()]
     else:
-        # For spaced languages (English, Hindi, Arabic, Romanian), standard space split is safest
         tokens = text_str.split()
         
-    # Generate vectors natively from FastText
     valid_vectors = [model.wv[word] for word in tokens if word in model.wv]
     
     if len(valid_vectors) > 0:
         return np.mean(valid_vectors, axis=0).reshape(1, -1)
     else:
-        # Fallback to the training set's vocabulary background instead of a flat zero vector
-        # This keeps XGBoost from breaking on empty inputs
         return np.mean(model.wv.vectors, axis=0).reshape(1, -1)
 
 user_input = st.text_area("Enter Text:", height=150, placeholder="Type something here...")
@@ -90,4 +75,8 @@ if st.button("Detect Language", type="primary"):
     else:
         vectorized_input = vectorize_text(user_input, ft_model)
         
-        pred_encoded = xgb_model.predict(vectorized_input)
+        pred_encoded = xgb_model.predict(vectorized_input)[0]
+        
+        predicted_language = languages_list[int(pred_encoded)]
+        
+        st.success(f"### Predicted Language: **{predicted_language}**")
